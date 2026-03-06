@@ -1,45 +1,175 @@
 """
 GlovU — Glove AI Traffic Sentinel
 
-Entry point. Handles three modes:
-  --install   Set up the system service, proxy settings, and CA cert
-  --uninstall Remove everything
-  --run       Run the sentinel (called by the service manager)
-  (no args)   Same as --run, used for development
+Single-executable consumer app. Double-click to install and run.
+
+First run:  detects it's not installed, requests UAC elevation if needed,
+            installs cert + proxy + autostart, then starts the tray.
+Subsequent: autostart calls this exe directly — jumps straight to tray.
 """
 
 from __future__ import annotations
 
-import atexit
+import os
 import sys
+from pathlib import Path
 
 
-def _usage() -> None:
-    print("Usage: python main.py [--install | --uninstall | --run]")
-    sys.exit(1)
+# ---------------------------------------------------------------------------
+# Installed location — where the exe copies itself on first run
+# ---------------------------------------------------------------------------
+
+def _install_dir() -> Path:
+    if sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home()))
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    return base / "GlovU"
+
+
+def _installed_exe() -> Path:
+    return _install_dir() / "GlovU.exe"
+
+
+def _is_installed() -> bool:
+    """Check whether Glove has been set up on this machine."""
+    from glovu.events import DATA_DIR
+    return (DATA_DIR / "state.json").exists() or _installed_exe().exists()
+
+
+def _is_running_from_install_dir() -> bool:
+    exe = Path(sys.executable if getattr(sys, "frozen", False) else __file__).resolve()
+    try:
+        exe.relative_to(_install_dir())
+        return True
+    except ValueError:
+        return False
+
+
+# ---------------------------------------------------------------------------
+# UAC elevation (Windows)
+# ---------------------------------------------------------------------------
+
+def _is_admin() -> bool:
+    if sys.platform != "win32":
+        return os.geteuid() == 0  # type: ignore[attr-defined]
+    try:
+        import ctypes
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return False
+
+
+def _relaunch_as_admin(extra_args: list[str] | None = None) -> None:
+    """Re-launch this process with UAC elevation and exit the current one."""
+    import ctypes
+    exe = sys.executable
+    args = " ".join([f'"{a}"' for a in (sys.argv + (extra_args or []))])
+    ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, args, None, 1)
+    sys.exit(0)
+
+
+# ---------------------------------------------------------------------------
+# Self-copy to install directory (so autostart runs from a stable path)
+# ---------------------------------------------------------------------------
+
+def _self_install_exe() -> None:
+    """Copy this executable to the install directory."""
+    if not getattr(sys, "frozen", False):
+        return   # running as a .py script during dev — skip copy
+    src = Path(sys.executable)
+    dest = _installed_exe()
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if src != dest:
+        import shutil
+        shutil.copy2(src, dest)
+
+
+# ---------------------------------------------------------------------------
+# Core flows
+# ---------------------------------------------------------------------------
+
+def first_run() -> None:
+    """
+    Called the first time a user double-clicks GlovU.exe.
+    Elevates to admin if needed, installs everything, then starts the tray.
+    """
+    # Need admin for cert install + service registration
+    if sys.platform == "win32" and not _is_admin():
+        _relaunch_as_admin(["--first-run"])
+        return   # unreachable — relaunch exits
+
+    _self_install_exe()
+    _do_install(silent=True)
+    run()
+
+
+def _do_install(silent: bool = False) -> None:
+    """Install cert, set proxy, register autostart."""
+    from glovu import service
+
+    def _log(msg: str) -> None:
+        if not silent:
+            print(msg)
+
+    # Stable exe path — autostart points here
+    exe_path = str(_installed_exe()) if getattr(sys, "frozen", False) else sys.executable
+    script_arg = "" if getattr(sys, "frozen", False) else f'"{os.path.abspath(__file__)}"'
+
+    _log("Generating CA certificate...")
+    if service.ensure_mitm_cert_exists():
+        cert_path = service.get_mitm_cert_path()
+        service.install_ca_cert(cert_path)
+
+    _log("Configuring system proxy...")
+    service.set_system_proxy()
+
+    _log("Registering autostart...")
+    if sys.platform == "win32":
+        _register_autostart_windows(exe_path)
+    elif sys.platform == "darwin":
+        service.register_macos_agent(exe_path, script_arg)
+    else:
+        service.register_linux_service(exe_path, script_arg)
+
+    # Mark as installed
+    from glovu.events import DATA_DIR
+    (DATA_DIR / "state.json").parent.mkdir(parents=True, exist_ok=True)
+    if not (DATA_DIR / "state.json").exists():
+        (DATA_DIR / "state.json").write_text("{}", encoding="utf-8")
+
+
+def _register_autostart_windows(exe_path: str) -> None:
+    """Add GlovU to the current user's autostart via the registry (no admin needed)."""
+    import winreg  # type: ignore[import]
+    key = winreg.OpenKey(
+        winreg.HKEY_CURRENT_USER,
+        r"Software\Microsoft\Windows\CurrentVersion\Run",
+        0, winreg.KEY_SET_VALUE,
+    )
+    winreg.SetValueEx(key, "GlovU", 0, winreg.REG_SZ, f'"{exe_path}"')
+    winreg.CloseKey(key)
 
 
 def run() -> None:
     """Start the proxy and the tray UI. Blocks until the user quits."""
+    import atexit
+    import threading
     from glovu import proxy, service
     from glovu.policy import ConsumerPolicy
     from glovu.providers import ProviderRegistry
     from glovu.tray import run_ui
 
-    # Restore proxy settings when we exit cleanly
     atexit.register(service.remove_system_proxy)
 
     registry = ProviderRegistry()
     policy = ConsumerPolicy(registry)
 
-    # Set the system proxy so all HTTPS traffic routes through us
     service.set_system_proxy()
-
-    # Background thread: mitmproxy intercepts AI traffic
     proxy.start(registry, policy)
 
-    # Optional: try updating the provider list on startup (non-blocking)
-    import threading
     threading.Thread(
         target=registry.try_update_from_remote,
         daemon=True,
@@ -54,7 +184,6 @@ def run() -> None:
             policy.approve_endpoint(event.provider_host, event.provider_name)
         elif event.kind == "blocked_unknown_model":
             policy.approve_model(event.provider_host, event.model)
-        # Push a confirmation event
         event_queue.put(new_event(
             "approved", event.app_name, event.provider_host, event.provider_name,
             what=f"Approved: {event.provider_name or event.app_name}.",
@@ -75,83 +204,51 @@ def run() -> None:
             action="All future requests from this source will be blocked.",
         ))
 
-    # Main thread: tray icon + event viewer (blocks until quit)
     run_ui(on_approve=on_approve, on_deny=on_deny)
-
-
-def install() -> None:
-    """Install GlovU as a background service with proxy and cert setup."""
-    import os
-    from glovu import service
-
-    python_exe = sys.executable
-    script_path = os.path.abspath(__file__)
-
-    print("Installing Glove AI Protection...")
-
-    # Generate the mitmproxy CA cert
-    print("  Generating CA certificate...")
-    if not service.ensure_mitm_cert_exists():
-        print("  Warning: CA certificate generation failed. HTTPS inspection may not work.")
-    else:
-        cert_path = service.get_mitm_cert_path()
-        print(f"  Installing CA certificate from {cert_path}...")
-        if service.install_ca_cert(cert_path):
-            print("  CA certificate installed successfully.")
-        else:
-            print("  Warning: CA certificate installation failed. You may need to run as administrator.")
-
-    # Register the background service
-    print("  Registering background service...")
-    ok = False
-    if sys.platform == "win32":
-        ok = service.register_windows_service(python_exe, script_path)
-    elif sys.platform == "darwin":
-        ok = service.register_macos_agent(python_exe, script_path)
-    else:
-        ok = service.register_linux_service(python_exe, script_path)
-
-    if ok:
-        print("  Service registered. Glove will start automatically on login.")
-    else:
-        print("  Warning: Service registration failed. You can start Glove manually with: python main.py --run")
-
-    # Configure system proxy
-    print("  Configuring system proxy...")
-    service.set_system_proxy()
-    print("  System proxy configured.")
-
-    print("\nGlove AI Protection is installed and running.")
-    print("You will see a small icon in your system tray.")
-    print("Glove will notify you if it protects you from something.")
 
 
 def uninstall() -> None:
     """Remove GlovU completely."""
     from glovu import service
-
-    print("Uninstalling Glove AI Protection...")
     service.remove_system_proxy()
-    print("  System proxy removed.")
-
     if sys.platform == "win32":
+        _remove_autostart_windows()
         service.unregister_windows_service()
     elif sys.platform == "darwin":
         service.unregister_macos_agent()
     else:
         service.unregister_linux_service()
-    print("  Service unregistered.")
 
-    print("Glove AI Protection has been removed.")
 
+def _remove_autostart_windows() -> None:
+    try:
+        import winreg  # type: ignore[import]
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            0, winreg.KEY_SET_VALUE,
+        )
+        winreg.DeleteValue(key, "GlovU")
+        winreg.CloseKey(key)
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    if not args or "--run" in args:
-        run()
-    elif "--install" in args:
-        install()
-    elif "--uninstall" in args:
+
+    if "--uninstall" in args:
         uninstall()
+    elif "--run" in args:
+        # Called by autostart — jump straight to tray
+        run()
+    elif "--first-run" in args or not _is_installed():
+        # First double-click: install then run
+        first_run()
     else:
-        _usage()
+        # Already installed, already running from install dir — just run
+        run()
