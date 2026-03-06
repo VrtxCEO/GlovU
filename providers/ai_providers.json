@@ -1,0 +1,163 @@
+{
+  "api.openai.com": {
+    "name": "OpenAI",
+    "host": "api.openai.com",
+    "paths": ["/v1/chat/completions", "/v1/completions", "/v1/embeddings", "/v1/images"],
+    "local": false,
+    "approved": true
+  },
+  "api.anthropic.com": {
+    "name": "Anthropic",
+    "host": "api.anthropic.com",
+    "paths": ["/v1/messages", "/v1/complete"],
+    "local": false,
+    "approved": true
+  },
+  "generativelanguage.googleapis.com": {
+    "name": "Google Gemini",
+    "host": "generativelanguage.googleapis.com",
+    "paths": ["/v1/", "/v1beta/"],
+    "local": false,
+    "approved": true
+  },
+  "api.groq.com": {
+    "name": "Groq",
+    "host": "api.groq.com",
+    "paths": ["/openai/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.mistral.ai": {
+    "name": "Mistral",
+    "host": "api.mistral.ai",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api-inference.huggingface.co": {
+    "name": "HuggingFace Inference",
+    "host": "api-inference.huggingface.co",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "router.huggingface.co": {
+    "name": "HuggingFace Serverless",
+    "host": "router.huggingface.co",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "api.perplexity.ai": {
+    "name": "Perplexity",
+    "host": "api.perplexity.ai",
+    "paths": ["/chat/completions"],
+    "local": false,
+    "approved": true
+  },
+  "api.x.ai": {
+    "name": "xAI Grok",
+    "host": "api.x.ai",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.cohere.com": {
+    "name": "Cohere",
+    "host": "api.cohere.com",
+    "paths": ["/v1/", "/v2/"],
+    "local": false,
+    "approved": true
+  },
+  "api.together.xyz": {
+    "name": "Together AI",
+    "host": "api.together.xyz",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.fireworks.ai": {
+    "name": "Fireworks AI",
+    "host": "api.fireworks.ai",
+    "paths": ["/inference/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.deepinfra.com": {
+    "name": "DeepInfra",
+    "host": "api.deepinfra.com",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.replicate.com": {
+    "name": "Replicate",
+    "host": "api.replicate.com",
+    "paths": ["/v1/predictions"],
+    "local": false,
+    "approved": true
+  },
+  "api.ai21.com": {
+    "name": "AI21 Labs",
+    "host": "api.ai21.com",
+    "paths": ["/studio/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.deepseek.com": {
+    "name": "DeepSeek",
+    "host": "api.deepseek.com",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "openrouter.ai": {
+    "name": "OpenRouter",
+    "host": "openrouter.ai",
+    "paths": ["/api/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.cerebras.ai": {
+    "name": "Cerebras",
+    "host": "api.cerebras.ai",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.sambanova.ai": {
+    "name": "SambaNova",
+    "host": "api.sambanova.ai",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "inference.ai.azure.com": {
+    "name": "Azure AI Inference",
+    "host": "inference.ai.azure.com",
+    "paths": ["/models/"],
+    "local": false,
+    "approved": true
+  },
+  "api.cognitive.microsoft.com": {
+    "name": "Azure OpenAI",
+    "host": "api.cognitive.microsoft.com",
+    "paths": ["/openai/"],
+    "local": false,
+    "approved": true
+  },
+  "bedrock-runtime.amazonaws.com": {
+    "name": "AWS Bedrock",
+    "host": "bedrock-runtime.amazonaws.com",
+    "paths": ["/model/"],
+    "local": false,
+    "approved": true
+  },
+  "us-central1-aiplatform.googleapis.com": {
+    "name": "Google Vertex AI",
+    "host": "us-central1-aiplatform.googleapis.com",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  }
+}
