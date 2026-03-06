@@ -123,9 +123,6 @@ def _do_install(silent: bool = False) -> None:
         cert_path = service.get_mitm_cert_path()
         service.install_ca_cert(cert_path)
 
-    _log("Configuring system proxy...")
-    service.set_system_proxy()
-
     _log("Registering autostart...")
     if sys.platform == "win32":
         _register_autostart_windows(exe_path)
@@ -153,6 +150,21 @@ def _register_autostart_windows(exe_path: str) -> None:
     winreg.CloseKey(key)
 
 
+def _wait_for_proxy(timeout: float = 10.0) -> bool:
+    """Poll localhost:7777 until mitmproxy is accepting connections or timeout."""
+    import socket
+    import time
+    from glovu.proxy import PROXY_HOST, PROXY_PORT
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection((PROXY_HOST, PROXY_PORT), timeout=0.5):
+                return True
+        except OSError:
+            time.sleep(0.25)
+    return False
+
+
 def run() -> None:
     """Start the proxy and the tray UI. Blocks until the user quits."""
     import atexit
@@ -167,8 +179,20 @@ def run() -> None:
     registry = ProviderRegistry()
     policy = ConsumerPolicy(registry)
 
-    service.set_system_proxy()
+    # Start proxy first, wait until it's actually listening before setting system proxy.
+    # This ensures a crash on startup never leaves the system proxy pointing at a dead port.
     proxy.start(registry, policy)
+    if _wait_for_proxy():
+        service.set_system_proxy()
+    else:
+        # Proxy failed to start — run in tray-only mode, don't touch system proxy
+        from glovu.events import event_queue, new_event
+        event_queue.put(new_event(
+            "suspicious_activity", "GlovU", "proxy", "GlovU",
+            what="Glove could not start its protection layer.",
+            why="The proxy failed to bind to port 7777. Another app may be using it.",
+            action="Protection is inactive. Your internet connection is unaffected.",
+        ))
 
     threading.Thread(
         target=registry.try_update_from_remote,

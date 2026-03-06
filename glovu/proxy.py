@@ -9,6 +9,7 @@ All HTTPS traffic flows through; only known AI endpoints are inspected.
 from __future__ import annotations
 
 import asyncio
+import sys
 import threading
 from typing import Optional
 
@@ -130,22 +131,24 @@ def start(registry: ProviderRegistry, policy: ConsumerPolicy) -> None:
 
 
 def _run_proxy() -> None:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    # mitmproxy requires SelectorEventLoop on Windows — the default ProactorEventLoop
+    # (used by Python 3.8+ on Windows) is incompatible with mitmproxy's networking stack.
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     try:
-        loop.run_until_complete(_async_run_proxy())
+        asyncio.run(_async_run_proxy())
     except Exception as exc:
-        # Proxy crashed — emit a synthetic event so the tray shows an issue state
+        # Proxy crashed — remove system proxy immediately so internet keeps working (fail-open)
+        from . import service as _svc
+        _svc.remove_system_proxy()
         from .events import new_event
         evt = new_event(
             "suspicious_activity", "GlovU", "proxy", "GlovU",
             what="Glove's protection layer stopped unexpectedly.",
             why=str(exc),
-            action="Restarting automatically. Your traffic is temporarily unprotected.",
+            action="Protection is paused. Your internet connection has been restored.",
         )
         event_queue.put(evt)
-    finally:
-        loop.close()
 
 
 async def _async_run_proxy() -> None:
