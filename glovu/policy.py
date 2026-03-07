@@ -24,15 +24,35 @@ from .providers import LOCAL_AI_PORTS, ProviderRegistry
 # ---------------------------------------------------------------------------
 
 _PII_PATTERNS: dict[str, re.Pattern] = {
-    "email address":         re.compile(r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b'),
-    "US phone number":       re.compile(r'\b(?:\+1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}\b'),
-    "Social Security Number": re.compile(r'\b\d{3}-\d{2}-\d{4}\b'),
-    "credit card number":    re.compile(r'\b(?:\d{4}[\s\-]?){3}\d{4}\b'),
-    "API key or token":      re.compile(r'\b(?:sk-|pk-|Bearer |api[_\-]?key[=:\s]+)[A-Za-z0-9_\-]{20,}', re.IGNORECASE),
-    "private key":           re.compile(r'-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'),
-    "AWS access key":        re.compile(r'\bAKIA[0-9A-Z]{16}\b'),
-    "JWT token":             re.compile(r'\beyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\b'),
-    "password field":        re.compile(r'"password"\s*:\s*"[^"]{4,}"', re.IGNORECASE),
+    # Identity
+    "email address":              re.compile(r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b'),
+    "US phone number":            re.compile(r'\b(?:\+1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}\b'),
+    "unformatted phone number":   re.compile(r'\b[2-9]\d{2}[2-9]\d{6}\b'),
+    "Social Security Number":     re.compile(r'\b\d{3}-\d{2}-\d{4}\b'),
+    "unformatted SSN":            re.compile(r'\b(?!000|666|9\d{2})\d{3}(?!00)\d{2}(?!0000)\d{4}\b'),
+    "Employer ID Number (EIN)":   re.compile(r'\b\d{2}-\d{7}\b'),
+    "US passport number":         re.compile(r'\b[A-Z]\d{8}\b'),
+    "driver license (generic)":   re.compile(r'\b(?:DL|DLN|driver.?lic(?:ense)?)[^\w]?\s*[A-Z0-9]{6,12}\b', re.IGNORECASE),
+    "date of birth":              re.compile(r'\b(?:dob|date.of.birth|born)[^\w]?\s*\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4}\b', re.IGNORECASE),
+    # Financial
+    "credit card number":         re.compile(r'\b(?:\d{4}[\s\-]?){3}\d{4}\b'),
+    "bank routing number":        re.compile(r'\b(?:routing|aba|rtn)[^\w]?\s*[0-9]{9}\b', re.IGNORECASE),
+    "bank account number":        re.compile(r'\b(?:account|acct)[^\w]?\s*(?:number|no|#)?[^\w]?\s*\d{8,17}\b', re.IGNORECASE),
+    "IBAN":                       re.compile(r'\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}(?:[A-Z0-9]{0,16})?\b'),
+    # Credentials & keys
+    "API key or token":           re.compile(r'\b(?:sk-|pk-|Bearer |api[_\-]?key[=:\s]+)[A-Za-z0-9_\-]{20,}', re.IGNORECASE),
+    "GitHub token":               re.compile(r'\bgh[pousr]_[A-Za-z0-9]{36,}\b'),
+    "Slack token":                re.compile(r'\bxox[baprs]-[A-Za-z0-9\-]{10,}\b'),
+    "Stripe key":                 re.compile(r'\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{24,}\b'),
+    "Google API key":             re.compile(r'\bAIza[A-Za-z0-9_\-]{35}\b'),
+    "private key":                re.compile(r'-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'),
+    "AWS access key":             re.compile(r'\bAKIA[0-9A-Z]{16}\b'),
+    "AWS secret key":             re.compile(r'\b(?:aws.?secret|secret.?access.?key)[^\w]?\s*[=:]\s*[A-Za-z0-9/+]{40}\b', re.IGNORECASE),
+    "JWT token":                  re.compile(r'\beyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\b'),
+    # Sensitive fields
+    "password field":             re.compile(r'"(?:password|passwd|secret|token|api_key|apikey|auth)"\s*:\s*"[^"]{4,}"', re.IGNORECASE),
+    "IP address":                 re.compile(r'\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b'),
+    "MAC address":                re.compile(r'\b(?:[0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}\b'),
 }
 
 _REDACT_PLACEHOLDER = "[REDACTED BY GLOVE]"
@@ -82,6 +102,21 @@ def redact_body(body: str) -> tuple[str, list[str]]:
         return json.dumps(cleaned), found
     except (json.JSONDecodeError, ValueError):
         return _redact_string(body)
+
+
+# ---------------------------------------------------------------------------
+# Known browsers — auto-approved (monitored but never blocked by Rule 2)
+# ---------------------------------------------------------------------------
+
+_BROWSER_APPS: frozenset[str] = frozenset({
+    # Windows
+    "chrome.exe", "msedge.exe", "firefox.exe", "brave.exe",
+    "opera.exe", "vivaldi.exe", "chromium.exe", "iexplore.exe",
+    "arc.exe", "waterfox.exe", "librewolf.exe",
+    # macOS / Linux names (no .exe)
+    "Google Chrome", "Microsoft Edge", "Firefox", "Brave Browser",
+    "Opera", "Vivaldi", "Chromium", "Arc", "Safari",
+})
 
 
 # ---------------------------------------------------------------------------
@@ -260,22 +295,27 @@ class ConsumerPolicy:
             return self._handle_denied_endpoint(host, app_name, provider.name)
 
         # --- Rule 2: app-level approval ---
-        if app_name in self._state.blocked_apps:
-            return _block(new_event(
-                "blocked_unknown_app", app_name, host, provider.name,
-                what=f"{app_name} tried to use AI but has been blocked.",
-                why=f"You previously denied {app_name} access to AI services.",
-                action="The request was blocked. No data left your device.",
-            ))
+        # Browsers are always allowed — they're user-driven, not background automations.
+        # Other apps (scripts, CLIs, background services) require explicit approval.
+        is_browser = app_name in _BROWSER_APPS
 
-        if app_name not in self._state.approved_apps:
-            return _block(new_event(
-                "blocked_unknown_app", app_name, host, provider.name,
-                what=f"{app_name} is trying to use AI for the first time.",
-                why="Apps must be approved before they can send data to AI services.",
-                action="The request was blocked. Tap to approve or deny this app.",
-                requires_decision=True,
-            ))
+        if not is_browser:
+            if app_name in self._state.blocked_apps:
+                return _block(new_event(
+                    "blocked_unknown_app", app_name, host, provider.name,
+                    what=f"{app_name} tried to use AI but has been blocked.",
+                    why=f"You previously denied {app_name} access to AI services.",
+                    action="The request was blocked. No data left your device.",
+                ))
+
+            if app_name not in self._state.approved_apps:
+                return _block(new_event(
+                    "blocked_unknown_app", app_name, host, provider.name,
+                    what=f"{app_name} is trying to use AI for the first time.",
+                    why="Apps must be approved before they can send data to AI services.",
+                    action="The request was blocked. Tap to approve or deny this app.",
+                    requires_decision=True,
+                ))
 
         # --- Rule 3: sensitive data protection ---
         modified_body, redacted_fields = None, []
@@ -297,6 +337,13 @@ class ConsumerPolicy:
             return model_verdict
 
         # --- Rule 7: burst / volume detection ---
+        # Skip for browsers — they make dozens of page-load requests normally.
+        # Burst detection is for background apps making automated API calls.
+        if is_browser:
+            if redacted_fields:
+                return PolicyVerdict(allowed=True, event=evt, modified_body=modified_body)
+            return PolicyVerdict(allowed=True, event=None)
+
         if len(body.encode()) > _LARGE_PAYLOAD_BYTES:
             suspicious_evt = new_event(
                 "suspicious_activity", app_name, host, provider.name,

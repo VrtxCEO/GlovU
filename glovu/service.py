@@ -26,6 +26,7 @@ def set_system_proxy() -> None:
     """Configure the OS to route all HTTPS traffic through Glove's local proxy."""
     if sys.platform == "win32":
         _set_proxy_windows()
+        _disable_browser_quic()   # Force browsers off QUIC so TCP proxy can intercept
     elif sys.platform == "darwin":
         _set_proxy_macos()
     else:
@@ -36,6 +37,7 @@ def remove_system_proxy() -> None:
     """Remove Glove's proxy settings from the OS."""
     if sys.platform == "win32":
         _remove_proxy_windows()
+        _enable_browser_quic()
     elif sys.platform == "darwin":
         _remove_proxy_macos()
     else:
@@ -44,6 +46,7 @@ def remove_system_proxy() -> None:
 
 def _set_proxy_windows() -> None:
     import winreg  # type: ignore[import]
+    # WinINet proxy (browsers, most apps)
     key = winreg.OpenKey(
         winreg.HKEY_CURRENT_USER,
         r"Software\Microsoft\Windows\CurrentVersion\Internet Settings",
@@ -51,10 +54,11 @@ def _set_proxy_windows() -> None:
     )
     winreg.SetValueEx(key, "ProxyServer", 0, winreg.REG_SZ, PROXY_ADDR)
     winreg.SetValueEx(key, "ProxyEnable", 0, winreg.REG_DWORD, 1)
-    # Bypass proxy for local addresses
     winreg.SetValueEx(key, "ProxyOverride", 0, winreg.REG_SZ, "<local>")
     winreg.CloseKey(key)
     _refresh_wininet()
+    # WinHTTP proxy (native Windows apps like Copilot desktop, .NET apps)
+    _set_winhttp_proxy()
 
 
 def _remove_proxy_windows() -> None:
@@ -67,6 +71,29 @@ def _remove_proxy_windows() -> None:
     winreg.SetValueEx(key, "ProxyEnable", 0, winreg.REG_DWORD, 0)
     winreg.CloseKey(key)
     _refresh_wininet()
+    _clear_winhttp_proxy()
+
+
+def _set_winhttp_proxy() -> None:
+    """Set WinHTTP proxy — used by native Windows apps (Copilot desktop, UWP, .NET)."""
+    try:
+        subprocess.run(
+            ["netsh", "winhttp", "set", "proxy", PROXY_ADDR, "<local>"],
+            capture_output=True,
+        )
+    except Exception:
+        pass
+
+
+def _clear_winhttp_proxy() -> None:
+    """Reset WinHTTP proxy to direct."""
+    try:
+        subprocess.run(
+            ["netsh", "winhttp", "reset", "proxy"],
+            capture_output=True,
+        )
+    except Exception:
+        pass
 
 
 def _refresh_wininet() -> None:
@@ -79,6 +106,46 @@ def _refresh_wininet() -> None:
         internet_set_option(0, INTERNET_OPTION_REFRESH, 0, 0)
     except Exception:
         pass
+
+
+# Browser QUIC policy paths (HKCU — no admin required)
+_QUIC_POLICY_PATHS = [
+    r"Software\Policies\Google\Chrome",
+    r"Software\Policies\Microsoft\Edge",
+    r"Software\Policies\BraveSoftware\Brave",
+]
+
+
+def _disable_browser_quic() -> None:
+    """
+    Set browser enterprise policy to disable QUIC (HTTP/3 over UDP).
+    Without this, Chrome/Edge use QUIC which bypasses the TCP proxy entirely.
+    Uses HKCU so no admin rights are needed.
+    """
+    import winreg  # type: ignore[import]
+    for path in _QUIC_POLICY_PATHS:
+        try:
+            key = winreg.CreateKeyEx(
+                winreg.HKEY_CURRENT_USER, path, 0, winreg.KEY_SET_VALUE,
+            )
+            winreg.SetValueEx(key, "QuicAllowed", 0, winreg.REG_DWORD, 0)
+            winreg.CloseKey(key)
+        except Exception:
+            pass
+
+
+def _enable_browser_quic() -> None:
+    """Remove GlovU's QUIC disable policy so browsers use QUIC normally after uninstall."""
+    import winreg  # type: ignore[import]
+    for path in _QUIC_POLICY_PATHS:
+        try:
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER, path, 0, winreg.KEY_SET_VALUE,
+            )
+            winreg.DeleteValue(key, "QuicAllowed")
+            winreg.CloseKey(key)
+        except Exception:
+            pass
 
 
 def _set_proxy_macos() -> None:
@@ -175,6 +242,14 @@ def install_ca_cert(cert_path: Path) -> bool:
 
 
 def _install_cert_windows(cert_path: Path) -> bool:
+    # Try user store first (no admin required); fall back to machine store if admin available
+    result = subprocess.run(
+        ["certutil", "-addstore", "-user", "-f", "Root", str(cert_path)],
+        capture_output=True,
+    )
+    if result.returncode == 0:
+        return True
+    # Retry with machine store (requires admin — may already be elevated on first run)
     result = subprocess.run(
         ["certutil", "-addstore", "-f", "Root", str(cert_path)],
         capture_output=True,

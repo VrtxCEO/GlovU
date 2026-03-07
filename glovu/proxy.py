@@ -91,6 +91,54 @@ class GlovuAddon:
         if verdict.event:
             event_queue.put(verdict.event)
 
+    def websocket_message(self, flow: http.HTTPFlow) -> None:
+        """
+        Scan outbound WebSocket messages for PII.
+        Catches Copilot (sydney.bing.com), Character.AI, and any AI service
+        that uses WebSocket instead of plain HTTP POST for chat.
+        """
+        if _registry is None or _policy is None:
+            return
+        if flow.websocket is None:
+            return
+
+        host = flow.request.host
+        if not _registry.is_known(host):
+            return
+
+        message = flow.websocket.messages[-1]
+        if not message.from_client:
+            return   # Only scan client→server (outbound) frames
+
+        try:
+            text = message.content.decode("utf-8", errors="ignore")
+        except Exception:
+            return
+
+        if not text:
+            return
+
+        from .policy import get_app_by_port, redact_body
+        src_port = flow.client_conn.peername[1] if flow.client_conn.peername else 0
+        app_name = get_app_by_port(src_port)
+        provider = _registry.lookup(host)
+        provider_name = provider.name if provider else host
+
+        new_text, redacted_fields = redact_body(text)
+        if redacted_fields:
+            try:
+                message.content = new_text.encode("utf-8")
+            except Exception:
+                pass
+            evt = new_event(
+                "redacted_sensitive_data", app_name, host, provider_name,
+                what=f"Sensitive data was found in a {provider_name} chat message from {app_name}.",
+                why="Glove detected private information in a real-time message.",
+                action=f"The following were automatically redacted: {', '.join(redacted_fields)}.",
+                redacted_fields=redacted_fields,
+            )
+            event_queue.put(evt)
+
     def response(self, flow: http.HTTPFlow) -> None:
         # Reserved for future response inspection (output scanning, token counting)
         pass

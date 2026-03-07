@@ -179,6 +179,10 @@ def run() -> None:
     registry = ProviderRegistry()
     policy = ConsumerPolicy(registry)
 
+    # Disable QUIC immediately so browsers use TCP before the proxy is even set.
+    if sys.platform == "win32":
+        service._disable_browser_quic()
+
     # Start proxy first, wait until it's actually listening before setting system proxy.
     # This ensures a crash on startup never leaves the system proxy pointing at a dead port.
     proxy.start(registry, policy)

@@ -2,7 +2,21 @@
   "api.openai.com": {
     "name": "OpenAI",
     "host": "api.openai.com",
-    "paths": ["/v1/chat/completions", "/v1/completions", "/v1/embeddings", "/v1/images"],
+    "paths": ["/v1/chat/completions", "/v1/completions", "/v1/embeddings", "/v1/images", "/v1/audio"],
+    "local": false,
+    "approved": true
+  },
+  "chat.openai.com": {
+    "name": "ChatGPT (Web)",
+    "host": "chat.openai.com",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "chatgpt.com": {
+    "name": "ChatGPT (Web)",
+    "host": "chatgpt.com",
+    "paths": ["/"],
     "local": false,
     "approved": true
   },
@@ -13,10 +27,136 @@
     "local": false,
     "approved": true
   },
+  "claude.ai": {
+    "name": "Claude (Web)",
+    "host": "claude.ai",
+    "paths": ["/api/"],
+    "local": false,
+    "approved": true
+  },
   "generativelanguage.googleapis.com": {
     "name": "Google Gemini",
     "host": "generativelanguage.googleapis.com",
     "paths": ["/v1/", "/v1beta/"],
+    "local": false,
+    "approved": true
+  },
+  "aiplatform.googleapis.com": {
+    "name": "Google Vertex AI",
+    "host": "aiplatform.googleapis.com",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "us-central1-aiplatform.googleapis.com": {
+    "name": "Google Vertex AI (US)",
+    "host": "us-central1-aiplatform.googleapis.com",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "europe-west4-aiplatform.googleapis.com": {
+    "name": "Google Vertex AI (EU)",
+    "host": "europe-west4-aiplatform.googleapis.com",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "gemini.google.com": {
+    "name": "Google Gemini (Web)",
+    "host": "gemini.google.com",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "bard.google.com": {
+    "name": "Google Bard (Web)",
+    "host": "bard.google.com",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "ml.googleapis.com": {
+    "name": "Google Cloud ML",
+    "host": "ml.googleapis.com",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "copilot.microsoft.com": {
+    "name": "Microsoft Copilot",
+    "host": "copilot.microsoft.com",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "sydney.bing.com": {
+    "name": "Microsoft Copilot (Bing)",
+    "host": "sydney.bing.com",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "edgeservices.bing.com": {
+    "name": "Microsoft Copilot (Edge)",
+    "host": "edgeservices.bing.com",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "www.bing.com": {
+    "name": "Bing AI",
+    "host": "www.bing.com",
+    "paths": ["/turing/", "/chat"],
+    "local": false,
+    "approved": true
+  },
+  "api.githubcopilot.com": {
+    "name": "GitHub Copilot",
+    "host": "api.githubcopilot.com",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "copilot-proxy.githubusercontent.com": {
+    "name": "GitHub Copilot Proxy",
+    "host": "copilot-proxy.githubusercontent.com",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "githubcopilot.com": {
+    "name": "GitHub Copilot",
+    "host": "githubcopilot.com",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  ".openai.azure.com": {
+    "name": "Azure OpenAI",
+    "host": ".openai.azure.com",
+    "paths": ["/openai/"],
+    "local": false,
+    "approved": true
+  },
+  "inference.ai.azure.com": {
+    "name": "Azure AI Inference",
+    "host": "inference.ai.azure.com",
+    "paths": ["/models/"],
+    "local": false,
+    "approved": true
+  },
+  "api.cognitive.microsoft.com": {
+    "name": "Azure Cognitive Services",
+    "host": "api.cognitive.microsoft.com",
+    "paths": ["/openai/"],
+    "local": false,
+    "approved": true
+  },
+  "bedrock-runtime.amazonaws.com": {
+    "name": "AWS Bedrock",
+    "host": "bedrock-runtime.amazonaws.com",
+    "paths": ["/model/"],
     "local": false,
     "approved": true
   },
@@ -55,6 +195,13 @@
     "local": false,
     "approved": true
   },
+  "perplexity.ai": {
+    "name": "Perplexity (Web)",
+    "host": "perplexity.ai",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
   "api.x.ai": {
     "name": "xAI Grok",
     "host": "api.x.ai",
@@ -69,9 +216,23 @@
     "local": false,
     "approved": true
   },
+  "api.cohere.ai": {
+    "name": "Cohere",
+    "host": "api.cohere.ai",
+    "paths": ["/v1/", "/v2/"],
+    "local": false,
+    "approved": true
+  },
   "api.together.xyz": {
     "name": "Together AI",
     "host": "api.together.xyz",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.together.ai": {
+    "name": "Together AI",
+    "host": "api.together.ai",
     "paths": ["/v1/"],
     "local": false,
     "approved": true
@@ -132,31 +293,164 @@
     "local": false,
     "approved": true
   },
-  "inference.ai.azure.com": {
-    "name": "Azure AI Inference",
-    "host": "inference.ai.azure.com",
-    "paths": ["/models/"],
-    "local": false,
-    "approved": true
-  },
-  "api.cognitive.microsoft.com": {
-    "name": "Azure OpenAI",
-    "host": "api.cognitive.microsoft.com",
-    "paths": ["/openai/"],
-    "local": false,
-    "approved": true
-  },
-  "bedrock-runtime.amazonaws.com": {
-    "name": "AWS Bedrock",
-    "host": "bedrock-runtime.amazonaws.com",
-    "paths": ["/model/"],
-    "local": false,
-    "approved": true
-  },
-  "us-central1-aiplatform.googleapis.com": {
-    "name": "Google Vertex AI",
-    "host": "us-central1-aiplatform.googleapis.com",
+  "integrate.api.nvidia.com": {
+    "name": "NVIDIA NIM",
+    "host": "integrate.api.nvidia.com",
     "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.nvcf.nvidia.com": {
+    "name": "NVIDIA Cloud Functions",
+    "host": "api.nvcf.nvidia.com",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "api.stability.ai": {
+    "name": "Stability AI",
+    "host": "api.stability.ai",
+    "paths": ["/v1/", "/v2beta/"],
+    "local": false,
+    "approved": true
+  },
+  "api.elevenlabs.io": {
+    "name": "ElevenLabs",
+    "host": "api.elevenlabs.io",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.assemblyai.com": {
+    "name": "AssemblyAI",
+    "host": "api.assemblyai.com",
+    "paths": ["/v2/", "/lemur/"],
+    "local": false,
+    "approved": true
+  },
+  "api.cloudflare.com": {
+    "name": "Cloudflare AI",
+    "host": "api.cloudflare.com",
+    "paths": ["/client/v4/accounts/"],
+    "local": false,
+    "approved": true
+  },
+  "api.runpod.io": {
+    "name": "RunPod",
+    "host": "api.runpod.io",
+    "paths": ["/v2/"],
+    "local": false,
+    "approved": true
+  },
+  "api.novita.ai": {
+    "name": "Novita AI",
+    "host": "api.novita.ai",
+    "paths": ["/v3/"],
+    "local": false,
+    "approved": true
+  },
+  "api.hyperbolic.xyz": {
+    "name": "Hyperbolic",
+    "host": "api.hyperbolic.xyz",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.lepton.ai": {
+    "name": "Lepton AI",
+    "host": "api.lepton.ai",
+    "paths": ["/api/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "inference.baseten.co": {
+    "name": "Baseten",
+    "host": "inference.baseten.co",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "poe.com": {
+    "name": "Poe",
+    "host": "poe.com",
+    "paths": ["/api/"],
+    "local": false,
+    "approved": true
+  },
+  "api.moonshot.cn": {
+    "name": "Moonshot AI (Kimi)",
+    "host": "api.moonshot.cn",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.minimax.chat": {
+    "name": "MiniMax",
+    "host": "api.minimax.chat",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "api.lingyiwanwu.com": {
+    "name": "01.AI (Yi)",
+    "host": "api.lingyiwanwu.com",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "dashscope.aliyuncs.com": {
+    "name": "Alibaba DashScope (Qwen)",
+    "host": "dashscope.aliyuncs.com",
+    "paths": ["/api/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "aip.baidubce.com": {
+    "name": "Baidu ERNIE",
+    "host": "aip.baidubce.com",
+    "paths": ["/rpc/2.0/ai_custom/"],
+    "local": false,
+    "approved": true
+  },
+  "api.siliconflow.cn": {
+    "name": "SiliconFlow",
+    "host": "api.siliconflow.cn",
+    "paths": ["/v1/"],
+    "local": false,
+    "approved": true
+  },
+  "chat.mistral.ai": {
+    "name": "Mistral Chat (Web)",
+    "host": "chat.mistral.ai",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "character.ai": {
+    "name": "Character.AI",
+    "host": "character.ai",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "neo.character.ai": {
+    "name": "Character.AI (API)",
+    "host": "neo.character.ai",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "grok.com": {
+    "name": "Grok (Web)",
+    "host": "grok.com",
+    "paths": ["/"],
+    "local": false,
+    "approved": true
+  },
+  "x.com": {
+    "name": "Grok on X (Web)",
+    "host": "x.com",
+    "paths": ["/i/grok"],
     "local": false,
     "approved": true
   }
