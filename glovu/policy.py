@@ -57,9 +57,20 @@ _PII_PATTERNS: dict[str, re.Pattern] = {
 
 _REDACT_PLACEHOLDER = "[REDACTED BY GLOVE]"
 
+# Matches strings that are pure base64 / URL-safe base64 — i.e. encrypted blobs.
+# We must not scan these: regex matches inside ciphertext corrupt the data.
+_OPAQUE_RE = re.compile(r'^[A-Za-z0-9+/\-_=\n]+$')
+
+
+def _looks_like_opaque_data(s: str) -> bool:
+    """Return True if s appears to be a base64/binary blob rather than human-readable text."""
+    return len(s) > 80 and ' ' not in s and bool(_OPAQUE_RE.match(s))
+
 
 def _redact_string(text: str) -> tuple[str, list[str]]:
     """Scan a string for PII and replace matches. Returns (cleaned, found_types)."""
+    if _looks_like_opaque_data(text):
+        return text, []
     found: list[str] = []
     for label, pattern in _PII_PATTERNS.items():
         if pattern.search(text):
