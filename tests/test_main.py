@@ -61,6 +61,13 @@ class MainEntryTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         first_run.assert_called_once_with()
 
+    def test_installed_binary_name_is_platform_specific(self) -> None:
+        with patch.object(main_module.sys, "platform", "win32"):
+            self.assertEqual(main_module._installed_binary_name(), "GlovU.exe")
+
+        with patch.object(main_module.sys, "platform", "darwin"):
+            self.assertEqual(main_module._installed_binary_name(), "GlovU")
+
 
 if __name__ == "__main__":
     unittest.main()

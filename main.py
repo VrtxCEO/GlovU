@@ -110,8 +110,12 @@ def _install_dir() -> Path:
     return base / "GlovU"
 
 
+def _installed_binary_name() -> str:
+    return "GlovU.exe" if sys.platform == "win32" else "GlovU"
+
+
 def _installed_exe() -> Path:
-    return _install_dir() / "GlovU.exe"
+    return _install_dir() / _installed_binary_name()
 
 
 def _is_installed() -> bool:
