@@ -13,6 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .app_logging import get_logger
 from .proxy import PROXY_HOST, PROXY_PORT
 
 PROXY_ADDR = f"{PROXY_HOST}:{PROXY_PORT}"
@@ -24,6 +25,7 @@ PROXY_ADDR = f"{PROXY_HOST}:{PROXY_PORT}"
 
 def set_system_proxy() -> None:
     """Configure the OS to route all HTTPS traffic through Glove's local proxy."""
+    get_logger().info("Applying system proxy settings.")
     if sys.platform == "win32":
         _set_proxy_windows()
         _disable_browser_quic()   # Force browsers off QUIC so TCP proxy can intercept
@@ -35,6 +37,7 @@ def set_system_proxy() -> None:
 
 def remove_system_proxy() -> None:
     """Remove Glove's proxy settings from the OS."""
+    get_logger().info("Removing system proxy settings.")
     if sys.platform == "win32":
         _remove_proxy_windows()
         _enable_browser_quic()

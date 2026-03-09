@@ -66,6 +66,7 @@ cyan "Copying files..."
 cp -r "$PROJECT_DIR/glovu" "$INSTALL_DIR/"
 cp "$PROJECT_DIR/main.py" "$INSTALL_DIR/"
 cp "$PROJECT_DIR/requirements.txt" "$INSTALL_DIR/"
+cp -r "$PROJECT_DIR/assets" "$INSTALL_DIR/"
 green "Files copied."
 
 # Install dependencies

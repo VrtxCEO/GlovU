@@ -22,7 +22,9 @@ from typing import Callable, Optional
 import pystray
 from PIL import Image, ImageDraw
 
+from .app_logging import get_logger
 from .events import GlovuEvent, event_queue
+from .assets import asset_path
 
 # Thread-safe queue for scheduling work on the tkinter main thread
 _ui_queue: Queue[Callable] = Queue()
@@ -46,24 +48,71 @@ _POPUP_COOLDOWN = 30.0   # seconds — don't re-pop the same event type from sam
 # Icon images
 # ---------------------------------------------------------------------------
 
+_BRAND_BASE: Image.Image | None | bool = None
+
+
+def _load_brand_icon(size: int) -> Image.Image | None:
+    """Load branded icon from assets, scaled to the requested size."""
+    global _BRAND_BASE
+    if _BRAND_BASE is None:
+        try:
+            path = asset_path("glovu-icon.png")
+            if path.exists():
+                _BRAND_BASE = Image.open(path).convert("RGBA")
+            else:
+                _BRAND_BASE = False
+        except Exception:
+            _BRAND_BASE = False
+    if _BRAND_BASE is False:
+        return None
+    if isinstance(_BRAND_BASE, Image.Image):
+        img = _BRAND_BASE.copy()
+        img.thumbnail((size, size))
+        canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        x = (size - img.width) // 2
+        y = (size - img.height) // 2
+        canvas.paste(img, (x, y), img)
+        return canvas
+    return None
+
+
 def _make_icon(state: str) -> Image.Image:
-    """Generate a simple colored circle icon for the tray."""
+    """Generate a tray icon with branded base and status indicator."""
     size = 64
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    img = _load_brand_icon(size)
+    if img is None:
+        # Fallback to a simple colored circle icon for the tray.
+        img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        margin = 4
+        colors = {
+            "protected": "#22C55E",   # green
+            "issue":     "#F59E0B",   # amber
+            "paused":    "#94A3B8",   # grey
+        }
+        color = colors.get(state, "#22C55E")
+        draw.ellipse([margin, margin, size - margin, size - margin], fill=color)
+
+        # Small inner dot for "heartbeat" feel
+        inner = size // 2
+        r = size // 8
+        draw.ellipse([inner - r, inner - r, inner + r, inner + r], fill="white")
+        return img
+
     draw = ImageDraw.Draw(img)
-    margin = 4
     colors = {
         "protected": "#22C55E",   # green
         "issue":     "#F59E0B",   # amber
         "paused":    "#94A3B8",   # grey
     }
     color = colors.get(state, "#22C55E")
-    draw.ellipse([margin, margin, size - margin, size - margin], fill=color)
-
-    # Small inner dot for "heartbeat" feel
-    inner = size // 2
-    r = size // 8
-    draw.ellipse([inner - r, inner - r, inner + r, inner + r], fill="white")
+    dot_r = size // 6
+    dot_margin = 3
+    x0 = size - dot_r * 2 - dot_margin
+    y0 = size - dot_r * 2 - dot_margin
+    x1 = x0 + dot_r * 2
+    y1 = y0 + dot_r * 2
+    draw.ellipse([x0, y0, x1, y1], fill=color, outline="white")
     return img
 
 
@@ -84,6 +133,7 @@ def _on_toggle(icon: pystray.Icon, item: pystray.MenuItem) -> None:
 
 def _on_quit(icon: pystray.Icon, item: pystray.MenuItem) -> None:
     from . import proxy, service
+    get_logger().info("Tray quit requested.")
     # Remove proxy immediately — atexit is unreliable in frozen exes.
     # This ensures the system proxy is always cleared before the process dies.
     service.remove_system_proxy()

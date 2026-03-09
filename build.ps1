@@ -1,8 +1,10 @@
-# GlovU build script — produces a single GlovU.exe
+# GlovU build script --- produces a single GlovU.exe
 # Run from the GlovU directory: .\build.ps1
 
 param(
-    [switch]$Clean
+    [switch]$Clean,
+    [string]$DistDir = "dist",
+    [string]$WorkDir = "build"
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,10 +17,10 @@ $ProjectDir = $PSScriptRoot
 Set-Location $ProjectDir
 
 # Clean previous build
-if ($Clean -or (Test-Path "dist")) {
+if ($Clean -or (Test-Path $DistDir) -or (Test-Path $WorkDir)) {
     Write-Step "Cleaning previous build..."
-    Remove-Item -Recurse -Force "dist" -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force "build" -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force $DistDir -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force $WorkDir -ErrorAction SilentlyContinue
     Write-Ok "Clean done."
 }
 
@@ -37,14 +39,34 @@ Write-Ok "Dependencies ready."
 
 # Build
 Write-Step "Building GlovU.exe (this takes a minute)..."
-& python -m PyInstaller glovu.spec --noconfirm
+$spec = Join-Path $ProjectDir "glovu.spec"
+if (Test-Path $spec) {
+    & python -m PyInstaller $spec --noconfirm --distpath $DistDir --workpath $WorkDir
+} else {
+    # Fallback: build directly from main.py
+    $iconPng = Join-Path $ProjectDir "assets\\glovu-icon.png"
+    $iconIco = Join-Path $ProjectDir "assets\\glovu-icon.ico"
+    $iconArg = @()
+    if (Test-Path $iconIco) { $iconArg = @("--icon", $iconIco) }
+    & python -m PyInstaller `
+        --name GlovU `
+        --onefile `
+        --noconsole `
+        --clean `
+        --distpath $DistDir `
+        --workpath $WorkDir `
+        --add-data "assets\\glovu-icon.png;assets" `
+        @iconArg `
+        main.py
+}
 if ($LASTEXITCODE -ne 0) { Write-Fail "PyInstaller failed." }
 
-$exe = "dist\GlovU.exe"
+$exe = Join-Path $DistDir "GlovU.exe"
 if (-not (Test-Path $exe)) { Write-Fail "Build succeeded but GlovU.exe not found." }
 
 $size = [math]::Round((Get-Item $exe).Length / 1MB, 1)
 Write-Ok "Built: $exe ($size MB)"
 
-Write-Host "`nDone. Distribute dist\GlovU.exe" -ForegroundColor Green
-Write-Host "Users double-click it — no setup required.`n" -ForegroundColor White
+Write-Host "`nDone. Distribute $exe" -ForegroundColor Green
+Write-Host "Users double-click it --- no setup required.`n" -ForegroundColor White
+

@@ -17,7 +17,8 @@ from mitmproxy import http
 from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 
-from .events import event_queue
+from .app_logging import get_logger, log_exception
+from .events import event_queue, new_event
 from .policy import ConsumerPolicy
 from .providers import ProviderRegistry
 
@@ -44,6 +45,12 @@ class GlovuAddon:
     """
 
     def request(self, flow: http.HTTPFlow) -> None:
+        try:
+            self._request_impl(flow)
+        except Exception:
+            _log_flow_exception("HTTP request inspection", flow)
+
+    def _request_impl(self, flow: http.HTTPFlow) -> None:
         if _registry is None or _policy is None:
             return
 
@@ -92,6 +99,12 @@ class GlovuAddon:
             event_queue.put(verdict.event)
 
     def websocket_message(self, flow: http.HTTPFlow) -> None:
+        try:
+            self._websocket_message_impl(flow)
+        except Exception:
+            _log_flow_exception("WebSocket inspection", flow)
+
+    def _websocket_message_impl(self, flow: http.HTTPFlow) -> None:
         """
         Scan outbound WebSocket messages for PII.
         Catches Copilot (sydney.bing.com), Character.AI, and any AI service
@@ -162,6 +175,12 @@ def _block_response(reason: str) -> bytes:
     }).encode("utf-8")
 
 
+def _log_flow_exception(context: str, flow: http.HTTPFlow) -> None:
+    host = getattr(flow.request, "host", "unknown-host")
+    path = getattr(flow.request, "path", "")
+    log_exception(f"{context} failed for {host}{path}")
+
+
 # ---------------------------------------------------------------------------
 # Background thread runner
 # ---------------------------------------------------------------------------
@@ -173,6 +192,7 @@ _master: Optional[DumpMaster] = None
 def start(registry: ProviderRegistry, policy: ConsumerPolicy) -> None:
     """Start the proxy in a background daemon thread."""
     init(registry, policy)
+    get_logger().info("Starting proxy thread.")
     global _proxy_thread
     _proxy_thread = threading.Thread(target=_run_proxy, daemon=True, name="glovu-proxy")
     _proxy_thread.start()
@@ -184,8 +204,10 @@ def _run_proxy() -> None:
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     try:
+        get_logger().info("Proxy event loop starting.")
         asyncio.run(_async_run_proxy())
     except Exception as exc:
+        log_exception("Proxy crashed.")
         # Proxy crashed — remove system proxy immediately so internet keeps working (fail-open)
         from . import service as _svc
         _svc.remove_system_proxy()
@@ -215,6 +237,7 @@ async def _async_run_proxy() -> None:
 def stop() -> None:
     global _master
     if _master:
+        get_logger().info("Stopping proxy.")
         _master.shutdown()
 
 

@@ -73,6 +73,7 @@ $ScriptRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 Copy-Item -Recurse -Force "$ScriptRoot\glovu" "$InstallDir\glovu"
 Copy-Item -Force "$ScriptRoot\main.py" "$InstallDir\main.py"
 Copy-Item -Force "$ScriptRoot\requirements.txt" "$InstallDir\requirements.txt"
+Copy-Item -Recurse -Force "$ScriptRoot\assets" "$InstallDir\assets"
 Write-Ok "Files copied to $InstallDir"
 
 # Install Python dependencies
