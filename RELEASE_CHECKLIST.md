@@ -69,6 +69,8 @@
 - Sell Windows first.
 - Position macOS and Linux as preview / waitlist until tested.
 - Treat the current release as founder-led beta, not polished mass-market self-serve.
+- Use `WINDOWS_BETA_TEST_MATRIX.md` as the operational gate for Windows pilot release.
+- Use `MACOS_VALIDATION.md` before making any macOS support claim.
 
 ## Exit Criteria For Broader Selling
 
