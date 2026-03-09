@@ -521,16 +521,17 @@ def _remove_autostart_windows() -> None:
 # Entry point
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
+def main_entry(args: list[str] | None = None) -> int:
     configure_logging()
-    args = sys.argv[1:]
+    if args is None:
+        args = sys.argv[1:]
     get_logger().info("Application launch. frozen=%s args=%s", getattr(sys, "frozen", False), args)
 
     if not _acquire_single_instance():
         get_logger().warning("Blocked duplicate launch. args=%s", args)
         if not args:
             _show_already_running_notice()
-        sys.exit(0)
+        return 0
 
     if "--uninstall" in args:
         uninstall()
@@ -538,7 +539,6 @@ if __name__ == "__main__":
         # Called by autostart — jump straight to tray
         run()
     elif "--first-run" in args or "--install" in args:
-        # Relaunched after UAC elevation — install then run
         first_run()
     elif getattr(sys, "frozen", False) and not _is_running_from_install_dir():
         get_logger().info("External launcher detected. installed=%s", _is_installed())
@@ -550,9 +550,12 @@ if __name__ == "__main__":
             _do_install(silent=True)
             _launch_installed_exe(["--run"])
     elif not _is_installed():
-        # First double-click: show install prompt, then install + run
         if _prompt_install():
             first_run()
     else:
-        # Already installed, already running from install dir — just run
         run()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main_entry())
